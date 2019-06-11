@@ -1,1 +1,1 @@
-library(surival)
+library(survival)
