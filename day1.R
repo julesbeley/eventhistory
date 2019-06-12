@@ -23,7 +23,7 @@ fit
 summary(fit)
 
 # plots (KM, hazard function, legislative variable survival and hazard function)
-png("KM.png", width = 800, height = 600)
+png("KM.png", width = 600, height = 400)
 ggsurvplot(fit,
            data = agency,
            legend = "none",
@@ -35,7 +35,7 @@ ggsurvplot(fit,
            ggtheme = theme_bw())
 dev.off()
 
-png("H.png", width = 800, height = 600)
+png("H.png", width = 600, height = 400)
 ggsurvplot(fit,
            data = agency,
            legend = "none",
@@ -49,14 +49,14 @@ ggsurvplot(fit,
 dev.off()
 
 fitleg <- survfit(agencysurv~leg, data = agency)
-png("leg.png", width = 800, height = 600)
+png("leg.png", width = 600, height = 400)
 ggsurvplot(fitleg, 
            data = agency,
            linetype = "solid",
            conf.int = TRUE,
            censor = FALSE,
            palette = c("gold", "darkturquoise"),
-           title = "Survival function of US government agencies",
+           title = "Survival function of US government agencies (KM)",
            xlab = "Time (number of days)",
            ggtheme = theme_bw())
 dev.off()
@@ -65,7 +65,7 @@ fitleg
 # log rank test (sts test varname in stata)
 survdiff(agencysurv ~ leg, data = agency)
 
-png("hazardleg.png", width = 800, height = 600)
+png("hazardleg.png", width = 600, height = 400)
 ggsurvplot(fitleg, 
            data = agency,
            fun = "cumhaz",
@@ -73,7 +73,7 @@ ggsurvplot(fitleg,
            conf.int = TRUE,
            censor = FALSE,
            palette = c("gold", "darkturquoise"),
-           title = "Survival function of US government agencies",
+           title = "Cumulative hazard function of US government agencies",
            xlab = "Time (number of days)",
            ggtheme = theme_bw())
 dev.off()
