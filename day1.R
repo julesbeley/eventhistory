@@ -59,17 +59,18 @@ text(x = 9000, y = 0.2, "leg = 0")
 dev.off()
 fitleg
 
+# log rank test (sts test varname in stata)
+survdiff(Surv(agency$enddate - agency$startdat, event = agency$terminated) ~ leg)
+
+# leg hazard
 hazardleg <- -log(fitleg$surv)
-png("hazardleg", width = 800, height = 600)
+png("hazardleg.png", width = 800, height = 600)
 plot(fitleg$time, 
      hazardleg, 
      pch = 20,
      main = "Hazard function for US government agencies",
      xlab = "Time in days",
      ylab = "Hazard function")
-text(x = 15000, y = 0.5, "leg = 1")
-text(x = 9000, y = 0.2, "leg = 0")
+text(x = 12000, y = 0.6, "leg = 1")
+text(x = 9000, y = 1.5, "leg = 0")
 dev.off()
-
-# log rank test (sts test varname in stata)
-survdiff(Surv(agency$enddate - agency$startdat, event = agency$terminated) ~ leg)
