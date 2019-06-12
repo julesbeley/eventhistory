@@ -22,7 +22,7 @@ fit <- survfit(agencysurv~1)
 fit
 summary(fit)
 
-# plots
+# plots (KM, hazard function, legislative variable survival and hazard function)
 png("KM.png", width = 800, height = 600)
 plot(fit, 
      main = "Survival of US government agencies",
@@ -30,16 +30,17 @@ plot(fit,
      ylab = "Probability of surviving (Kaplan-Meier)")
 dev.off()
 
-# computing the hazard function
-hazard <- -log(fit$surv)
-
 png("H.png", width = 800, height = 600)
-plot(fit$time, 
-     hazard, 
-     type = "s",
-     main = "Hazard function for US government agencies",
-     xlab = "Time in days",
-     ylab = "Hazard function")
+ggsurvplot(fit,
+           data = agency,
+           legend = "none",
+           fun = "cumhaz",
+           conf.int = TRUE,
+           censor = FALSE,
+           palette = "darkturquoise",
+           title = "Cumulative hazard function of US government agencies",
+           xlab = "Time (number of days)",
+           ggtheme = theme_bw())
 dev.off()
 
 fitleg <- survfit(agencysurv~leg, data = agency)
@@ -51,10 +52,12 @@ ggsurvplot(fitleg,
            censor = FALSE,
            palette = c("gold", "darkturquoise"),
            title = "Survival function of US government agencies",
-           xlab = "Time (number of days)")
+           xlab = "Time (number of days)",
+           ggtheme = theme_bw())
 dev.off()
 fitleg
 
+?ggsurvplot
 
 # log rank test (sts test varname in stata)
 survdiff(agencysurv ~ leg, data = agency)
@@ -71,4 +74,3 @@ plot(fitleg$time,
 text(x = 12000, y = 0.6, "leg = 1")
 text(x = 9000, y = 1.5, "leg = 0")
 dev.off()
-
