@@ -2,6 +2,7 @@
 library(survival)
 library(KMsurv)
 library(rio)
+library(survminer) # make sure you're using the latest version of R
 
 # import stata dataset
 agency <- import("./agency.dta")
@@ -9,26 +10,19 @@ agency <- import("./agency.dta")
 # create censorship indicator
 agency <- cbind(agency, agency$enddate != "1997-12-31")
 colnames(agency)[100] <- "terminated"
-
-# convert logical to numeric
 agency$terminated <- as.numeric(agency$terminated)
 
-# number of agency terminations
 sum(agency$terminated[!is.na(agency$terminated)])
 
-# number of right-censored
 length(agency$terminated) - sum(agency$terminated)
 
-# creating a Surv object
-agencysurv <- Surv(agency$enddate - agency$startdat, 
-                   event = agency$terminated)
-
-# fitting it 
+# creating a Surv object and fitting it
+agencysurv <- Surv(agency$enddate - agency$startdat, event = agency$terminated)
 fit <- survfit(agencysurv~1)
 fit
 summary(fit)
 
-# plots (there is an automatic way to plot survival data, but I haven't managed to load the package yet)
+# plots
 png("KM.png", width = 800, height = 600)
 plot(fit, 
      main = "Survival of US government agencies",
@@ -48,7 +42,7 @@ plot(fit$time,
      ylab = "Hazard function")
 dev.off()
 
-fitleg <- survfit(agencysurv~leg)
+fitleg <- survfit(agencysurv~leg, data = agency)
 png("leg.png", width = 800, height = 600)
 plot(fitleg, 
      main = "Survival of US government agencies",
@@ -59,8 +53,10 @@ text(x = 9000, y = 0.2, "leg = 0")
 dev.off()
 fitleg
 
+ggsurvplot(fitleg, data = agency)
+
 # log rank test (sts test varname in stata)
-survdiff(Surv(agency$enddate - agency$startdat, event = agency$terminated) ~ leg)
+survdiff(Surv(agency$enddate - agency$startdat, event = agency$terminated) ~ leg, data = agency)
 
 # leg hazard
 hazardleg <- -log(fitleg$surv)
@@ -74,3 +70,4 @@ plot(fitleg$time,
 text(x = 12000, y = 0.6, "leg = 1")
 text(x = 9000, y = 1.5, "leg = 0")
 dev.off()
+
