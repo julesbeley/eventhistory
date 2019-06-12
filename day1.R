@@ -1,6 +1,5 @@
 # install the packages before loading them
 library(survival)
-library(KMsurv)
 library(rio)
 library(survminer) # make sure you're using the latest version of R
 
