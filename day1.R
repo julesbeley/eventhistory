@@ -1,4 +1,4 @@
-# don't forget to install the packages before loading them
+# install the packages before loading them
 library(survival)
 library(KMsurv)
 library(rio)
@@ -44,19 +44,20 @@ dev.off()
 
 fitleg <- survfit(agencysurv~leg, data = agency)
 png("leg.png", width = 800, height = 600)
-plot(fitleg, 
-     main = "Survival of US government agencies",
-     xlab = "Time in days",
-     ylab = "Probability of surviving (Kaplan-Meier)")
-text(x = 15000, y = 0.5, "leg = 1")
-text(x = 9000, y = 0.2, "leg = 0")
+ggsurvplot(fitleg, 
+           data = agency,
+           linetype = "solid",
+           conf.int = TRUE,
+           censor = FALSE,
+           palette = c("gold", "darkturquoise"),
+           title = "Survival function of US government agencies",
+           xlab = "Time (number of days)")
 dev.off()
 fitleg
 
-ggsurvplot(fitleg, data = agency)
 
 # log rank test (sts test varname in stata)
-survdiff(Surv(agency$enddate - agency$startdat, event = agency$terminated) ~ leg, data = agency)
+survdiff(agencysurv ~ leg, data = agency)
 
 # leg hazard
 hazardleg <- -log(fitleg$surv)
