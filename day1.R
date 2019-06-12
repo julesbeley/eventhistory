@@ -24,10 +24,15 @@ summary(fit)
 
 # plots (KM, hazard function, legislative variable survival and hazard function)
 png("KM.png", width = 800, height = 600)
-plot(fit, 
-     main = "Survival of US government agencies",
-     xlab = "Time in days",
-     ylab = "Probability of surviving (Kaplan-Meier)")
+ggsurvplot(fit,
+           data = agency,
+           legend = "none",
+           conf.int = TRUE,
+           censor = FALSE,
+           palette = "darkturquoise",
+           title = "Survival function of US government agencies (KM)",
+           xlab = "Time (number of days)",
+           ggtheme = theme_bw())
 dev.off()
 
 png("H.png", width = 800, height = 600)
@@ -57,20 +62,18 @@ ggsurvplot(fitleg,
 dev.off()
 fitleg
 
-?ggsurvplot
-
 # log rank test (sts test varname in stata)
 survdiff(agencysurv ~ leg, data = agency)
 
-# leg hazard
-hazardleg <- -log(fitleg$surv)
 png("hazardleg.png", width = 800, height = 600)
-plot(fitleg$time, 
-     hazardleg, 
-     pch = 20,
-     main = "Hazard function for US government agencies",
-     xlab = "Time in days",
-     ylab = "Hazard function")
-text(x = 12000, y = 0.6, "leg = 1")
-text(x = 9000, y = 1.5, "leg = 0")
+ggsurvplot(fitleg, 
+           data = agency,
+           fun = "cumhaz",
+           linetype = "solid",
+           conf.int = TRUE,
+           censor = FALSE,
+           palette = c("gold", "darkturquoise"),
+           title = "Survival function of US government agencies",
+           xlab = "Time (number of days)",
+           ggtheme = theme_bw())
 dev.off()
