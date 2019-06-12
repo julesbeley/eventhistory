@@ -28,7 +28,7 @@ fit <- survfit(agencysurv~1)
 fit
 summary(fit)
 
-# plots
+# plots (there is an automatic way to plot survival data, but I haven't managed to load the package yet)
 png("KM.png", width = 800, height = 600)
 plot(fit, 
      main = "Survival of US government agencies",
@@ -36,7 +36,9 @@ plot(fit,
      ylab = "Probability of surviving (Kaplan-Meier)")
 dev.off()
 
+# computing the hazard function
 hazard <- -log(fit$surv)
+
 png("H.png", width = 800, height = 600)
 plot(fit$time, 
      hazard, 
@@ -57,5 +59,17 @@ text(x = 9000, y = 0.2, "leg = 0")
 dev.off()
 fitleg
 
-# log rank test (sts test)
+hazardleg <- -log(fitleg$surv)
+png("hazardleg", width = 800, height = 600)
+plot(fitleg$time, 
+     hazardleg, 
+     pch = 20,
+     main = "Hazard function for US government agencies",
+     xlab = "Time in days",
+     ylab = "Hazard function")
+text(x = 15000, y = 0.5, "leg = 1")
+text(x = 9000, y = 0.2, "leg = 0")
+dev.off()
+
+# log rank test (sts test varname in stata)
 survdiff(Surv(agency$enddate - agency$startdat, event = agency$terminated) ~ leg)
