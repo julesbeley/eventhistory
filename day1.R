@@ -140,9 +140,7 @@ exp; weib
 
 # compute AIC from maximum log-likelihood in model results
 
-ehaAIC <- function (fit) {
-    return(2 * fit$df - 2*fit$loglik[2])
-}
+ehaAIC <- function (fit) return(2 * fit$df - 2*fit$loglik[2])
 ehaAIC(exp)
 ehaAIC(weib)
 
