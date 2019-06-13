@@ -3,6 +3,7 @@ library(survival)
 library(rio)
 library(survminer) # make sure you're using the latest version of R
 library(bshazard)
+library(eha)
 
 # import stata dataset
 agency <- import("./agency.dta")
@@ -97,3 +98,14 @@ dev.off()
 
 # log rank test (sts test varname in stata)
 survdiff(agencysurv ~ leg, data = agency)
+
+# parametric survival regression (AFT)
+survreg(agencysurv ~ leg, data = agency, dist = "weibull") -> s
+summary(s)
+
+# survreg only has AFT
+# flexsurvreg has AFT for Weibull and PH for exponential
+# eha has PH for both
+
+# parametric survival regression with eha (PH)
+phreg(agencysurv ~ leg, data = agency)
