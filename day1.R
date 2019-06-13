@@ -138,6 +138,15 @@ exp <- phreg(agencysurv ~ leg + num + exec, data = agency, shape = 1) # exponent
 weib <- phreg(agencysurv ~ leg + num + exec, data = agency) #weibull
 exp; weib
 
+# compute AIC from maximum log-likelihood in model results
+
+ehaAIC <- function (fit) {
+    return(2 * fit$df - 2*fit$loglik[2])
+}
+ehaAIC(exp)
+ehaAIC(weib)
+
+# post-estimation
 png("exp.png", height = 500, width = 500)
 plot(exp)
 dev.off()
