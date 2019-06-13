@@ -3,6 +3,7 @@ library(survival)
 library(rio)
 library(survminer) # make sure you're using the latest version of R
 library(bshazard)
+library(tidyverse)
 library(eha)
 
 # import stata dataset
@@ -19,7 +20,7 @@ length(agency$terminated) - sum(agency$terminated)
 
 # creating a Surv object and fitting it
 agencysurv <- Surv(agency$enddate - agency$startdat, event = agency$terminated)
-fit <- survfit(agencysurv~1)
+fit <- survfit(agencysurv ~ 1)
 fit
 summary(fit)
 
@@ -46,13 +47,7 @@ ggsurvplot(fit,
            xlab = "Time (number of days)",
            ggtheme = theme_bw()) -> H
 
-plot(bshazard(agencysurv~1, data = agency), 
-     col = "blue", 
-     col.fill = "gold",
-     main = "Smoothed hazard",
-     xlab = "Time in days")
-
-fitleg <- survfit(agencysurv~leg, data = agency)
+fitleg <- survfit(agencysurv ~ leg, data = agency)
 fitleg
 
 ggsurvplot(fitleg, 
@@ -99,6 +94,36 @@ dev.off()
 # log rank test (sts test varname in stata)
 survdiff(agencysurv ~ leg, data = agency)
 
+# hazard graph
+png("hazard.png", width = 600, height = 500)
+plot(bshazard(agencysurv ~ 1, data = agency, lambda = 30), 
+     col = "blue", 
+     col.fill = "khaki1",
+     main = "Smoothed hazard",
+     xlab = "Time in days")
+dev.off()
+
+# hazard graph for two given variables (I have to separate leg == 1 and leg == 0)
+
+agency1 <- filter(agency, leg == 1) 
+agency0 <- filter(agency, leg == 0)
+
+agencysurv1 <- Surv(agency1$enddate - agency1$startdat, event = agency1$terminated)
+agencysurv0 <- Surv(agency0$enddate - agency0$startdat, event = agency0$terminated)
+
+png("Hcompare.png", width = 600, height = 400)
+plot(bshazard(agencysurv0 ~ 1, data = agency0), 
+     conf.int = FALSE,
+     col = "white",
+     main = "PH test for leg == 1 and leg == 0")
+lines(bshazard(agencysurv0 ~ 1, data = agency0, lambda = 30), 
+      col = "gold", conf.int = FALSE, lwd = 2)
+lines(bshazard(agencysurv1 ~ 1, data = agency1, lambda = 30), 
+      col = "darkturquoise", conf.int = FALSE, lwd = 2)
+text(x = 3000, y = 0.00005, "leg = 1")
+text(x = 6000, y = 0.00015, "leg = 0")
+dev.off()
+
 # parametric survival regression (AFT)
 survreg(agencysurv ~ leg, data = agency, dist = "weibull") -> s
 summary(s)
@@ -109,3 +134,6 @@ summary(s)
 
 # parametric survival regression with eha (PH)
 phreg(agencysurv ~ leg, data = agency)
+plot(phreg(agencysurv ~ leg, data = agency))
+
+
