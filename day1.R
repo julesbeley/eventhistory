@@ -5,6 +5,7 @@ library(survminer) # make sure you're using the latest version of R
 library(bshazard)
 library(tidyverse)
 library(eha)
+library(flexsurv)
 
 # import stata dataset
 agency <- import("./agency.dta")
@@ -133,7 +134,14 @@ summary(s)
 # eha has PH for both
 
 # parametric survival regression with eha (PH)
-phreg(agencysurv ~ leg, data = agency)
-plot(phreg(agencysurv ~ leg, data = agency))
+exp <- phreg(agencysurv ~ leg + num + exec, data = agency, shape = 1) # exponential as weibull with shape 1
+weib <- phreg(agencysurv ~ leg + num + exec, data = agency) #weibull
+exp; weib
 
+png("exp.png", height = 500, width = 500)
+plot(exp)
+dev.off()
 
+png("weib.png", height = 500, width = 500)
+plot(weib)
+dev.off()
