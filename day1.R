@@ -22,8 +22,7 @@ length(agency$terminated) - sum(agency$terminated)
 # creating a Surv object and fitting it
 agencysurv <- Surv(agency$enddate - agency$startdat, event = agency$terminated)
 fit <- survfit(agencysurv ~ 1)
-fit
-summary(fit)
+fit; summary(fit)
 
 # plots (KM, hazard function, smoothed hazard, legislative survival and hazard function)
 
@@ -139,12 +138,11 @@ weib <- phreg(agencysurv ~ leg + num + exec, data = agency) #weibull
 exp; weib
 
 # compute AIC from maximum log-likelihood in model results
-
-ehaAIC <- function (fit) return(2 * fit$df - 2*fit$loglik[2])
+ehaAIC <- function (fit) return(2 * fit$df - 2 * fit$loglik[2])
 ehaAIC(exp)
 ehaAIC(weib)
 
-# post-estimation
+# post-estimation graphs
 png("exp.png", height = 500, width = 500)
 plot(exp)
 dev.off()
