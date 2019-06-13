@@ -2,6 +2,7 @@
 library(survival)
 library(rio)
 library(survminer) # make sure you're using the latest version of R
+library(bshazard)
 
 # import stata dataset
 agency <- import("./agency.dta")
@@ -21,7 +22,7 @@ fit <- survfit(agencysurv~1)
 fit
 summary(fit)
 
-# plots (KM, hazard function, legislative variable survival and hazard function)
+# plots (KM, hazard function, smoothed hazard, legislative survival and hazard function)
 
 ggsurvplot(fit,
            data = agency,
@@ -43,6 +44,12 @@ ggsurvplot(fit,
            title = "Cumulative hazard function of US government agencies",
            xlab = "Time (number of days)",
            ggtheme = theme_bw()) -> H
+
+plot(bshazard(agencysurv~1, data = agency), 
+     col = "blue", 
+     col.fill = "gold",
+     main = "Smoothed hazard",
+     xlab = "Time in days")
 
 fitleg <- survfit(agencysurv~leg, data = agency)
 fitleg
@@ -84,7 +91,9 @@ png("hazardleg.png", width = 600, height = 400)
 hazardleg
 dev.off()
 
-arrange_ggsurvplots(list(KM, leg, H, hazardleg), nrow = 2, ncol = 2)
+png("all.png", width = 750, height = 500)
+arrange_ggsurvplots(list(KM, leg, H, hazardleg), nrow = 2, ncol = 2) 
+dev.off()
 
 # log rank test (sts test varname in stata)
 survdiff(agencysurv ~ leg, data = agency)
