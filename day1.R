@@ -171,15 +171,32 @@ dev.off()
 
 ggcoxdiagnostics(cox) # martingale residuals
 
-# time-varying covariates????
-tmerge(agency, 
-       agency, 
-       id = agencyid, 
-       tstart = startdat, 
-       tstop = enddate,
-       time = tdc(startdat, enddate))
+# time-varying covariates
+as.numeric(unique(agency$enddate[agency$terminated == 1])) # natural cut points
+
+# wide to long
+survSplit(formula = agencysurv ~ leg + num + com + mem, 
+          data = agency,
+          id = "agencyid",
+          cut = seq(min(as.numeric(agency$enddate)), 
+                    max(as.numeric(agency$enddate)), 
+                    by = 50),
+          end = "enddate",
+          start = "startdat",
+          event = "terminated") -> long
+
+
+
+# specify the id when creating Surv object (+ cluster)
+
+agencysurv2 <- Surv(time = as.numeric(agency$startdat),
+                    time2 = as.numeric(agency$enddate), 
+                    event = agency$terminated)
+
+
+coxph(agencysurv ~ leg + num + com + mem, data = long)
+coxph(agencysurv ~ leg + num + com + mem, data = agency)
 
 # compare Cox PH model with Weibull and exponential
-
 phreg(agencysurv ~ leg + num + com + mem, data = agency, shape = 1)
 phreg(agencysurv ~ leg + num + com + mem, data = agency)
