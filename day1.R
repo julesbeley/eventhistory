@@ -1,7 +1,7 @@
 # install the packages before loading them
 library(survival)
 library(rio)
-library(survminer) # make sure you're using the latest version of R
+library(survminer)
 library(bshazard)
 library(tidyverse)
 library(eha)
@@ -105,16 +105,16 @@ dev.off()
 
 # hazard graph for two given variables (I have to separate leg == 1 and leg == 0)
 
-agency1 <- filter(agency, leg == 1) 
-agency0 <- filter(agency, leg == 0)
+agency %>% filter(leg == 1) -> agency1 
+agency %>% filter(leg == 0) -> agency0
 
 agencysurv1 <- Surv(agency1$enddate - agency1$startdat, event = agency1$terminated)
 agencysurv0 <- Surv(agency0$enddate - agency0$startdat, event = agency0$terminated)
 
 png("Hcompare.png", width = 600, height = 400)
-plot(bshazard(agencysurv0 ~ 1, data = agency0), 
+plot(bshazard(agencysurv0 ~ 1, data = agency0, lambda = 30), 
      conf.int = FALSE,
-     col = "white",
+     col = "blue",
      main = "PH test for leg == 1 and leg == 0")
 lines(bshazard(agencysurv0 ~ 1, data = agency0, lambda = 30), 
       col = "gold", conf.int = FALSE, lwd = 2)
@@ -138,6 +138,8 @@ weib <- phreg(agencysurv ~ leg + num + exec, data = agency) #weibull
 exp; weib
 
 # compute AIC from maximum log-likelihood in model results
+# loglik doc: Vector of length 2. The first component is the maximized loglihood with only...
+# ...scale and shape in the model, the second the final maximum, which one is most relevant?
 ehaAIC <- function (fit) return(2 * fit$df - 2 * fit$loglik[2])
 ehaAIC(exp)
 ehaAIC(weib)
@@ -150,3 +152,34 @@ dev.off()
 png("weib.png", height = 500, width = 500)
 plot(weib)
 dev.off()
+?coxph
+
+# Cox PH model
+coxph(agencysurv ~ leg + num + com + mem, data = agency) -> cox
+cox
+coxph(agencysurv ~ leg + num + com + mem + exec, data = agency)
+cox.zph(cox) -> zph
+
+par(mfrow = c(1,1))
+plot(cox.zph(cox))
+plot(zph[2])
+
+png("Schoenfeld.png", width = 700, height = 700)
+par(mfrow = c(2,2))
+ggcoxzph(cox.zph(cox)) # equivalent with survminer
+dev.off()
+
+ggcoxdiagnostics(cox) # martingale residuals
+
+# time-varying covariates????
+tmerge(agency, 
+       agency, 
+       id = agencyid, 
+       tstart = startdat, 
+       tstop = enddate,
+       time = tdc(startdat, enddate))
+
+# compare Cox PH model with Weibull and exponential
+
+phreg(agencysurv ~ leg + num + com + mem, data = agency, shape = 1)
+phreg(agencysurv ~ leg + num + com + mem, data = agency)
