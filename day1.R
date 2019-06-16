@@ -159,6 +159,7 @@ coxph(agencysurv ~ leg + num + com + mem, data = agency) -> cox
 cox
 coxph(agencysurv ~ leg + num + com + mem + exec, data = agency)
 cox.zph(cox) -> zph
+zph
 
 par(mfrow = c(1,1))
 plot(cox.zph(cox))
@@ -175,7 +176,7 @@ ggcoxdiagnostics(cox) # martingale residuals
 as.numeric(unique(agency$enddate[agency$terminated == 1])) # natural cut points
 
 # wide to long
-survSplit(formula = agencysurv ~ leg + num + com + mem, 
+survSplit(formula = agencysurv ~ leg + num + com + mem + enddate + exec, 
           data = agency,
           id = "agencyid",
           cut = seq(min(as.numeric(agency$enddate)), 
@@ -185,7 +186,14 @@ survSplit(formula = agencysurv ~ leg + num + com + mem,
           start = "startdat",
           event = "terminated") -> long
 
+long
 
+# mem tvc
+long$lmem <- long$mem * as.numeric(long$enddate)
+
+# fitting the model with the tvc / cluster 
+coxph(agencysurv ~ leg + num + com + lmem + exec, data = long, cluster(agencyid)) -> coxtvc
+cox.zph(coxtvc)
 
 # specify the id when creating Surv object (+ cluster)
 
