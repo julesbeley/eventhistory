@@ -303,13 +303,17 @@ long
 long$llocat23 <- long$locat23 * as.numeric(long$time1)
 long
 
-coxph(agencysurv ~ leg + com + term + locat23 + llocat23, 
+coxph(agencysurv ~ leg + com + locat23 + term + llocat23, 
       data = long, cluster(agencyid)) -> bet2tvc
 
-bet2
-
+bet2 # compare with no tvc
+options(scipen = 999)
 bet2tvc
 cox.zph(bet2tvc)
+plot(survfit(bet2tvc))
+
+par(mfrow = c(2,2))
+ggcoxzph(cox.zph(bet2tvc))
 
 # apatables to export results to Word
 # run frailty model as a test (as a diagnostic -> footnote) but no interpretation of coefficients
