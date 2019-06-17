@@ -25,23 +25,16 @@ fit <- survfit(agencysurv ~ 1)
 fit; summary(fit)
 
 # plots (KM, hazard function, smoothed hazard, legislative survival and hazard function)
-ggsurvplot(fit,
-           data = agency,
-           legend = "none",
-           conf.int = TRUE,
-           censor = FALSE,
+ggsurvplot(fit, data = agency, legend = "none",
+           conf.int = TRUE, censor = FALSE,
            palette = "darkturquoise",
            title = "Survival function of US government agencies (KM)",
            xlab = "Time (number of days)",
            ggtheme = theme_bw()) -> KM
 
-ggsurvplot(fit,
-           data = agency,
-           legend = "none",
-           fun = "cumhaz",
-           conf.int = TRUE,
-           censor = FALSE,
-           palette = "darkturquoise",
+ggsurvplot(fit, data = agency, legend = "none",
+           fun = "cumhaz", conf.int = TRUE,
+           censor = FALSE, palette = "darkturquoise",
            title = "Cumulative hazard function of US government agencies",
            xlab = "Time (number of days)",
            ggtheme = theme_bw()) -> H
@@ -49,23 +42,16 @@ ggsurvplot(fit,
 fitleg <- survfit(agencysurv ~ leg, data = agency)
 fitleg
 
-ggsurvplot(fitleg, 
-           data = agency,
-           linetype = "solid",
-           conf.int = TRUE,
-           censor = FALSE,
+ggsurvplot(fitleg, data = agency, linetype = "solid",
+           conf.int = TRUE, censor = FALSE,
            palette = c("gold", "darkturquoise"),
            title = "Survival function of US government agencies (KM)",
            xlab = "Time (number of days)",
            ggtheme = theme_bw()) -> leg
 
-ggsurvplot(fitleg, 
-           data = agency,
-           fun = "cumhaz",
-           linetype = "solid",
-           conf.int = TRUE,
-           censor = FALSE,
-           palette = c("gold", "darkturquoise"),
+ggsurvplot(fitleg, data = agency, fun = "cumhaz",
+           linetype = "solid", conf.int = TRUE,
+           censor = FALSE, palette = c("gold", "darkturquoise"),
            title = "Cumulative hazard function of US government agencies",
            xlab = "Time (number of days)",
            ggtheme = theme_bw()) -> hazardleg
@@ -157,8 +143,7 @@ weib <- phreg(agencysurv ~ leg + num + exec,
 exp; weib
 
 # compute AIC from maximum log-likelihood in model results
-# loglik doc: Vector of length 2. The first component is the maximized loglihood with only...
-# ...scale and shape in the model, the second the final maximum, which one is most relevant?
+# loglik doc: vector of length 2
 ehaAIC <- function (fit) return(2 * fit$df - 2 * fit$loglik[2])
 ehaAIC(exp)
 ehaAIC(weib)
@@ -229,16 +214,18 @@ long
 # fitting the model with the tvc / cluster 
 coxph(agencysurv ~ leg + num + com + mem + exec, 
       data = agency) -> notvc
+plot(survfit(notvc)) # estimated survival function
 coxph(agencysurv ~ leg + num + com + mem + lmem + exec, 
       data = long, cluster(agencyid)) -> coxtvc
 cox.zph(notvc)
 cox.zph(coxtvc)
 
-# piecewise exponential baseline model
+# piecewise exponential baseline model (computed as a poisson regression)
 glm(terminated ~ leg + num + com + mem + exec, 
     data = long,
     family = "poisson") -> pwe
 summary(pwe)
+?glm
 
 # comparing with stata results
 coxph(agencysurv ~ leg + exec + bdivided, data = agency) 
