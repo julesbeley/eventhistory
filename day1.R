@@ -88,15 +88,20 @@ hazardleg
 dev.off()
 
 png("all.png", width = 750, height = 500)
-arrange_ggsurvplots(list(KM, leg, H, hazardleg), nrow = 2, ncol = 2) 
+arrange_ggsurvplots(list(KM, leg, H, hazardleg), 
+                    nrow = 2, 
+                    ncol = 2) 
 dev.off()
 
 # log rank test (sts test varname in stata)
-survdiff(agencysurv ~ leg, data = agency)
+survdiff(agencysurv ~ leg, 
+         data = agency)
 
 # hazard graph
 png("hazard.png", width = 600, height = 500)
-plot(bshazard(agencysurv ~ 1, data = agency, lambda = 30), 
+plot(bshazard(agencysurv ~ 1, 
+              data = agency, 
+              lambda = 30), 
      col = "blue", 
      col.fill = "khaki1",
      main = "Smoothed hazard",
@@ -108,8 +113,10 @@ dev.off()
 agency %>% filter(leg == 1) -> agency1 
 agency %>% filter(leg == 0) -> agency0
 
-agencysurv1 <- Surv(agency1$enddate - agency1$startdat, event = agency1$terminated)
-agencysurv0 <- Surv(agency0$enddate - agency0$startdat, event = agency0$terminated)
+agencysurv1 <- Surv(agency1$enddate - agency1$startdat, 
+                    event = agency1$terminated)
+agencysurv0 <- Surv(agency0$enddate - agency0$startdat, 
+                    event = agency0$terminated)
 
 png("Hcompare.png", width = 600, height = 400)
 plot(bshazard(agencysurv0 ~ 1, data = agency0, lambda = 30), 
@@ -125,7 +132,9 @@ text(x = 6000, y = 0.00015, "leg = 0")
 dev.off()
 
 # parametric survival regression (AFT)
-survreg(agencysurv ~ leg, data = agency, dist = "weibull") -> s
+survreg(agencysurv ~ leg, 
+        data = agency, 
+        dist = "weibull") -> s
 summary(s)
 
 # survreg only has AFT
@@ -133,8 +142,11 @@ summary(s)
 # eha has PH for both
 
 # parametric survival regression with eha (PH)
-exp <- phreg(agencysurv ~ leg + num + exec, data = agency, shape = 1) # exponential as weibull with shape 1
-weib <- phreg(agencysurv ~ leg + num + exec, data = agency) #weibull
+exp <- phreg(agencysurv ~ leg + num + exec, 
+             data = agency, 
+             shape = 1) # exponential as weibull with shape 1
+weib <- phreg(agencysurv ~ leg + num + exec, 
+              data = agency) #weibull
 exp; weib
 
 # compute AIC from maximum log-likelihood in model results
@@ -155,9 +167,11 @@ dev.off()
 ?coxph
 
 # Cox PH model
-coxph(agencysurv ~ leg + num + com + mem, data = agency) -> cox
+coxph(agencysurv ~ leg + num + com + mem, 
+      data = agency) -> cox
 cox
-coxph(agencysurv ~ leg + num + com + mem + exec, data = agency)
+coxph(agencysurv ~ leg + num + com + mem + exec, 
+      data = agency)
 cox.zph(cox) -> zph
 zph
 
@@ -186,13 +200,19 @@ survSplit(formula = agencysurv ~ leg + num + com + mem + enddate + exec,
           start = "startdat",
           event = "terminated") -> long
 
-long
+long$enddate <- as.numeric(long$enddate) - min(as.numeric(long$enddate))
 
 # mem tvc
-long$lmem <- long$mem * as.numeric(long$enddate)
+long$lmem <- long$mem * log(as.numeric(long$enddate))
+long$lmem
 
 # fitting the model with the tvc / cluster 
-coxph(agencysurv ~ leg + num + com + lmem + exec, data = long, cluster(agencyid)) -> coxtvc
+coxph(agencysurv ~ leg + num + com + mem + exec, 
+      data = agency) -> notvc
+coxph(agencysurv ~ leg + num + com + mem + lmem + exec, 
+      data = long, 
+      cluster(agencyid)) -> coxtvc
+cox.zph(notvc)
 cox.zph(coxtvc)
 
 # specify the id when creating Surv object (+ cluster)
@@ -202,9 +222,15 @@ agencysurv2 <- Surv(time = as.numeric(agency$startdat),
                     event = agency$terminated)
 
 
-coxph(agencysurv ~ leg + num + com + mem, data = long)
-coxph(agencysurv ~ leg + num + com + mem, data = agency)
+coxph(agencysurv ~ leg + reorg + bdivided, 
+      data = agency) -> test
+
+coxph(agencysurv ~ leg + num + com + mem, 
+      data = agency)
 
 # compare Cox PH model with Weibull and exponential
-phreg(agencysurv ~ leg + num + com + mem, data = agency, shape = 1)
-phreg(agencysurv ~ leg + num + com + mem, data = agency)
+phreg(agencysurv ~ leg + num + com + mem, 
+      data = agency, 
+      shape = 1)
+phreg(agencysurv ~ leg + num + com + mem, 
+      data = agency)
