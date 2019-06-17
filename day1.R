@@ -25,7 +25,6 @@ fit <- survfit(agencysurv ~ 1)
 fit; summary(fit)
 
 # plots (KM, hazard function, smoothed hazard, legislative survival and hazard function)
-
 ggsurvplot(fit,
            data = agency,
            legend = "none",
@@ -109,7 +108,6 @@ plot(bshazard(agencysurv ~ 1,
 dev.off()
 
 # hazard graph for two given variables (I have to separate leg == 1 and leg == 0)
-
 agency %>% filter(leg == 1) -> agency1 
 agency %>% filter(leg == 0) -> agency0
 
@@ -117,6 +115,9 @@ agencysurv1 <- Surv(agency1$enddate - agency1$startdat,
                     event = agency1$terminated)
 agencysurv0 <- Surv(agency0$enddate - agency0$startdat, 
                     event = agency0$terminated)
+
+plot(bshazard(agencysurv ~ strata(leg), data = agency, lambda = 30), 
+     conf.int = FALSE)
 
 png("Hcompare.png", width = 600, height = 400)
 plot(bshazard(agencysurv0 ~ 1, data = agency0, lambda = 30), 
@@ -130,6 +131,12 @@ lines(bshazard(agencysurv1 ~ 1, data = agency1, lambda = 30),
 text(x = 3000, y = 0.00005, "leg = 1")
 text(x = 6000, y = 0.00015, "leg = 0")
 dev.off()
+
+# strata, comparing survival for a dummy variable
+coxph(agencysurv ~ num + com + mem + strata(leg), 
+      data = agency) -> strata
+
+plot(survfit(strata))
 
 # parametric survival regression (AFT)
 survreg(agencysurv ~ leg, 
@@ -186,11 +193,18 @@ dev.off()
 
 ggcoxdiagnostics(cox) # martingale residuals
 
+# compare Cox PH model with Weibull and exponential
+phreg(agencysurv ~ leg + num + com + mem, 
+      data = agency, 
+      shape = 1)
+phreg(agencysurv ~ leg + num + com + mem, 
+      data = agency)
+
 # time-varying covariates
 as.numeric(unique(agency$enddate[agency$terminated == 1])) # natural cut points
 
-# wide to long
-survSplit(formula = agencysurv ~ leg + num + com + mem + enddate + exec, 
+# wide to long (modify enddate so that it's equivalent to agencysurv[2]?)
+survSplit(formula = agencysurv ~ leg + num + com + mem + exec + terminated, 
           data = agency,
           id = "agencyid",
           cut = seq(min(as.numeric(agency$enddate)), 
@@ -199,38 +213,38 @@ survSplit(formula = agencysurv ~ leg + num + com + mem + enddate + exec,
           end = "enddate",
           start = "startdat",
           event = "terminated") -> long
+long
 
-long$enddate <- as.numeric(long$enddate) - min(as.numeric(long$enddate))
+long$time1 <- long$agencysurv[,2]
+long$time0 <- long$agencysurv[,1]
+
+long <- long[,c("agencyid", "com", "leg", 
+                "num", "mem", "exec", "time0", 
+                "time1", "agencysurv", "terminated")]
 
 # mem tvc
-long$lmem <- long$mem * log(as.numeric(long$enddate))
-long$lmem
+long$lmem <- long$mem * log(as.numeric(long$time1))
+long
 
 # fitting the model with the tvc / cluster 
 coxph(agencysurv ~ leg + num + com + mem + exec, 
       data = agency) -> notvc
 coxph(agencysurv ~ leg + num + com + mem + lmem + exec, 
-      data = long, 
-      cluster(agencyid)) -> coxtvc
+      data = long, cluster(agencyid)) -> coxtvc
 cox.zph(notvc)
 cox.zph(coxtvc)
 
-# specify the id when creating Surv object (+ cluster)
+# piecewise exponential baseline model
+glm(terminated ~ leg + num + com + mem + exec, 
+    data = long,
+    family = "poisson") -> pwe
+summary(pwe)
 
-agencysurv2 <- Surv(time = as.numeric(agency$startdat),
-                    time2 = as.numeric(agency$enddate), 
-                    event = agency$terminated)
-
+# comparing with stata results
+coxph(agencysurv ~ leg + exec + bdivided, data = agency) 
 
 coxph(agencysurv ~ leg + reorg + bdivided, 
       data = agency) -> test
 
 coxph(agencysurv ~ leg + num + com + mem, 
-      data = agency)
-
-# compare Cox PH model with Weibull and exponential
-phreg(agencysurv ~ leg + num + com + mem, 
-      data = agency, 
-      shape = 1)
-phreg(agencysurv ~ leg + num + com + mem, 
       data = agency)
