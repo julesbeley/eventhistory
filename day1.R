@@ -119,10 +119,24 @@ text(x = 6000, y = 0.00015, "leg = 0")
 dev.off()
 
 # strata, comparing survival for a dummy variable in a Cox PH model
-coxph(agencysurv ~ num + com + mem + strata(leg), 
+coxph(agencysurv ~ strata(locat2), 
       data = agency) -> strata
 
+# term has very few cases?
 plot(survfit(strata))
+plot(survfit(strata), 
+     col = c("blue", "red", "black", "green", "orange"))
+
+# recode location variable into three categories (low, medium, high)
+agency$locat23[agency$locat2 == 1] <- 1
+agency$locat23[agency$locat2 == 2 & agency$locat2 == 3] <- 2
+agency$locat23[agency$locat2 == 4 & agency$locat2 == 5] <- 3
+agency$locat23
+
+coxph(agencysurv ~ strata(locat23), 
+      data = agency) -> strata
+plot(survfit(strata), 
+     col = c("blue", "red", "black"))
 
 # parametric survival regression (AFT)
 survreg(agencysurv ~ leg, 
@@ -164,9 +178,12 @@ colnames(agency)
 coxph(agencysurv ~ leg + num + com + mem + locat2 + line + term + corp + exec, 
       data = agency) -> cox
 cox
-coxph(agencysurv ~ leg + com + mem + locat2 + term + exec, 
-      data = agency)
-cox.zph(cox) -> zph
+plot(survfit(cox))
+coxph(agencysurv ~ leg + com + mem + locat23 + term + exec, 
+      data = agency) -> bet
+bet
+plot(survfit(bet))
+cox.zph(bet) -> zph
 zph
 
 par(mfrow = c(1,1))
@@ -246,3 +263,53 @@ coxph(agencysurv ~ leg + reorg + bdivided,
 
 coxph(agencysurv ~ leg + num + com + mem, 
       data = agency)
+
+# final model (show that exec and corp (and mem?) uninteresting)
+coxph(agencysurv ~ leg + com + mem + locat23 + term + corp + exec, 
+      data = agency) -> bet
+bet
+plot(survfit(bet))
+cox.zph(bet) -> zph
+zph
+
+coxph(agencysurv ~ leg + com + locat23 + term, 
+      data = agency) -> bet2
+bet2
+plot(survfit(bet2))
+cox.zph(bet2) -> zph2
+zph2
+
+#... tvc on PH assumption violator? (locat23)
+survSplit(formula = agencysurv ~ leg + com + locat23 + term, 
+          data = agency,
+          id = "agencyid",
+          cut = seq(min(as.numeric(agency$enddate)), 
+                    max(as.numeric(agency$enddate)), 
+                    by = 365),
+          end = "enddate",
+          start = "startdat",
+          event = "terminated") -> long
+
+long$terminated <- long$agencysurv[,3]
+long$time1 <- long$agencysurv[, 2]
+long$time0 <- long$agencysurv[, 1]
+
+long <- long[ , c("agencyid", "leg", "com", 
+                  "locat23", "term", "time0", 
+                  "time1", "agencysurv", "terminated")]
+long
+
+# locat23 tvc
+long$llocat23 <- long$locat23 * as.numeric(long$time1)
+long
+
+coxph(agencysurv ~ leg + com + term + locat23 + llocat23, 
+      data = long, cluster(agencyid)) -> bet2tvc
+
+bet2
+
+bet2tvc
+cox.zph(bet2tvc)
+
+# apatables to export results to Word
+# run frailty model as a test (as a diagnostic -> footnote) but no interpretation of coefficients
