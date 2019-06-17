@@ -118,7 +118,7 @@ text(x = 3000, y = 0.00005, "leg = 1")
 text(x = 6000, y = 0.00015, "leg = 0")
 dev.off()
 
-# strata, comparing survival for a dummy variable
+# strata, comparing survival for a dummy variable in a Cox PH model
 coxph(agencysurv ~ num + com + mem + strata(leg), 
       data = agency) -> strata
 
@@ -158,11 +158,13 @@ plot(weib)
 dev.off()
 ?coxph
 
+colnames(agency)
+
 # Cox PH model
-coxph(agencysurv ~ leg + num + com + mem, 
+coxph(agencysurv ~ leg + num + com + mem + locat2 + line + term + corp + exec, 
       data = agency) -> cox
 cox
-coxph(agencysurv ~ leg + num + com + mem + exec, 
+coxph(agencysurv ~ leg + com + mem + locat2 + term + exec, 
       data = agency)
 cox.zph(cox) -> zph
 zph
@@ -188,25 +190,31 @@ phreg(agencysurv ~ leg + num + com + mem,
 # time-varying covariates
 as.numeric(unique(agency$enddate[agency$terminated == 1])) # natural cut points
 
+# how do you decide on cut points when creating a tvc?
+# when is a tvc a good idea?
+# why are p-values in Cox PH model with tvc all so high?
+# when is a pwe model a good idea?
+
 # wide to long (modify enddate so that it's equivalent to agencysurv[2]?)
-survSplit(formula = agencysurv ~ leg + num + com + mem + exec + terminated, 
+# terminated variable is not correct (it is the same for all cut points)
+survSplit(formula = agencysurv ~ leg + num + com + mem + exec, 
           data = agency,
           id = "agencyid",
           cut = seq(min(as.numeric(agency$enddate)), 
                     max(as.numeric(agency$enddate)), 
-                    by = 50),
+                    by = 365),
           end = "enddate",
           start = "startdat",
           event = "terminated") -> long
+
+long$terminated <- long$agencysurv[,3]
+long$time1 <- long$agencysurv[, 2]
+long$time0 <- long$agencysurv[, 1]
+
+long <- long[ , c("agencyid", "com", "leg", 
+                  "num", "mem", "exec", "time0", 
+                  "time1", "agencysurv", "terminated")]
 long
-
-long$time1 <- long$agencysurv[,2]
-long$time0 <- long$agencysurv[,1]
-
-long <- long[,c("agencyid", "com", "leg", 
-                "num", "mem", "exec", "time0", 
-                "time1", "agencysurv", "terminated")]
-
 # mem tvc
 long$lmem <- long$mem * log(as.numeric(long$time1))
 long
@@ -216,16 +224,19 @@ coxph(agencysurv ~ leg + num + com + mem + exec,
       data = agency) -> notvc
 plot(survfit(notvc)) # estimated survival function
 coxph(agencysurv ~ leg + num + com + mem + lmem + exec, 
-      data = long, cluster(agencyid)) -> coxtvc
+      data = long, cluster(agencyid)) -> coxtvcc # clustering
+coxph(agencysurv ~ leg + num + com + mem + lmem + exec, 
+      data = long) -> coxtvcnc # no clustering
 cox.zph(notvc)
-cox.zph(coxtvc)
+cox.zph(coxtvcc)
+cox.zph(coxtvcnc)
 
 # piecewise exponential baseline model (computed as a poisson regression)
 glm(terminated ~ leg + num + com + mem + exec, 
     data = long,
     family = "poisson") -> pwe
 summary(pwe)
-?glm
+termplot(pwe)
 
 # comparing with stata results
 coxph(agencysurv ~ leg + exec + bdivided, data = agency) 
