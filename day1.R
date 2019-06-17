@@ -1,4 +1,5 @@
 # install the packages before loading them
+rm(list = ls())
 library(survival)
 library(rio)
 library(survminer)
@@ -6,6 +7,7 @@ library(bshazard)
 library(tidyverse)
 library(eha)
 library(flexsurv)
+library(penalized)
 
 # import stata dataset
 agency <- import("./agency.dta")
@@ -129,8 +131,8 @@ plot(survfit(strata),
 
 # recode location variable into three categories (low, medium, high)
 agency$locat23[agency$locat2 == 1] <- 1
-agency$locat23[agency$locat2 == 2 & agency$locat2 == 3] <- 2
-agency$locat23[agency$locat2 == 4 & agency$locat2 == 5] <- 3
+agency$locat23[agency$locat2 == 2 | agency$locat2 == 3] <- 2
+agency$locat23[agency$locat2 == 4 | agency$locat2 == 5] <- 3
 agency$locat23
 
 coxph(agencysurv ~ strata(locat23), 
@@ -253,7 +255,6 @@ glm(terminated ~ leg + num + com + mem + exec,
     data = long,
     family = "poisson") -> pwe
 summary(pwe)
-termplot(pwe)
 
 # comparing with stata results
 coxph(agencysurv ~ leg + exec + bdivided, data = agency) 
@@ -280,7 +281,7 @@ cox.zph(bet2) -> zph2
 zph2
 
 #... tvc on PH assumption violator? (locat23)
-survSplit(formula = agencysurv ~ leg + com + locat23 + term, 
+survSplit(formula = agencysurv ~ leg + com + locat23 + term + corp + exec + mem, 
           data = agency,
           id = "agencyid",
           cut = seq(min(as.numeric(agency$enddate)), 
@@ -294,8 +295,8 @@ long$terminated <- long$agencysurv[,3]
 long$time1 <- long$agencysurv[, 2]
 long$time0 <- long$agencysurv[, 1]
 
-long <- long[ , c("agencyid", "leg", "com", 
-                  "locat23", "term", "time0", 
+long <- long[ , c("agencyid", "leg", "com", "mem", 
+                  "locat23", "term", "time0", "corp", "exec",
                   "time1", "agencysurv", "terminated")]
 long
 
@@ -303,7 +304,7 @@ long
 long$llocat23 <- long$locat23 * as.numeric(long$time1)
 long
 
-coxph(agencysurv ~ leg + com + locat23 + term + llocat23, 
+coxph(agencysurv ~ exec + leg + com + locat23 + term + llocat23, 
       data = long, cluster(agencyid)) -> bet2tvc
 
 bet2 # compare with no tvc
@@ -317,3 +318,15 @@ ggcoxzph(cox.zph(bet2tvc))
 
 # apatables to export results to Word
 # run frailty model as a test (as a diagnostic -> footnote) but no interpretation of coefficients
+# use coxme to run frailty model
+coxph(agencysurv ~ leg + com + locat23 + term + llocat23 + frailty(agencyid), 
+      data = long, cluster(agencyid)) -> bet2tvc # doesn't work yet
+
+# penalized Cox regression
+par(mfrow = c(1,1))
+penalized(response = agencysurv, 
+          penalized = ~ mem + corp + exec + leg + com + locat23 + term + llocat23, 
+          standardize = TRUE,
+          data = na.omit(long),
+          steps = "Park") -> pen
+plotpath(pen, lwd = 2)
