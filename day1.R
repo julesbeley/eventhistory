@@ -8,6 +8,7 @@ library(tidyverse)
 library(eha)
 library(flexsurv)
 library(penalized)
+library(glmnet)
 
 # import stata dataset
 agency <- import("./agency.dta")
@@ -281,9 +282,8 @@ cox.zph(bet2) -> zph2
 zph2
 
 #... tvc on PH assumption violator? (locat23)
-survSplit(formula = agencysurv ~ leg + com + locat23 + term + corp + exec + mem, 
+survSplit(formula = agencysurv ~ ., 
           data = agency,
-          id = "agencyid",
           cut = seq(min(as.numeric(agency$enddate)), 
                     max(as.numeric(agency$enddate)), 
                     by = 365),
@@ -295,9 +295,6 @@ long$terminated <- long$agencysurv[,3]
 long$time1 <- long$agencysurv[, 2]
 long$time0 <- long$agencysurv[, 1]
 
-long <- long[ , c("agencyid", "leg", "com", "mem", 
-                  "locat23", "term", "time0", "corp", "exec",
-                  "time1", "agencysurv", "terminated")]
 long
 
 # locat23 tvc
@@ -322,11 +319,33 @@ ggcoxzph(cox.zph(bet2tvc))
 coxph(agencysurv ~ leg + com + locat23 + term + llocat23 + frailty(agencyid), 
       data = long, cluster(agencyid)) -> bet2tvc # doesn't work yet
 
-# penalized Cox regression
+# penalized Cox regression using "penalized" library
 par(mfrow = c(1,1))
 penalized(response = agencysurv, 
-          penalized = ~ mem + corp + exec + leg + com + locat23 + term + llocat23, 
+          penalized = ~ .,
           standardize = TRUE,
           data = na.omit(long),
           steps = "Park") -> pen
-plotpath(pen, lwd = 2)
+plotpath(pen, lwd = 2, labelsize = 1)
+
+# the same with glmnet on agency
+agencynet <- cbind(agency, agencysurv)
+x <- na.omit(as.matrix(agencynet[,-c(1:2,7,8,23,47:49,66,67,100)]))
+y <- cbind(x[,"agencysurv.time"], x[,"agencysurv.status"])
+colnames(y) <- c("time", "status")
+x <- x[,-c(92,93)]
+net <- glmnet(x, y, family = "cox", alpha = 1, maxit = 500000)
+cv <- cv.glmnet(x, y, family = "cox", alpha = 1)
+plot(net, xvar = "lambda")
+abline(v = log(cv$lambda.min), lty = 2)
+plot(cv)
+
+
+# get coefficients for cross-validated estimate
+coefficients = coef(cv, s = cv$lambda.min)
+coefficients
+active.index = which(coefficients != 0)
+active.coefficients = coefficients[active.index]
+active.coefficients
+covarno = predict(cv, s = cv$lambda.min, type="nonzero")
+cbind(covarno, active.coefficients)
