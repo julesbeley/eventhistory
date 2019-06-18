@@ -333,19 +333,17 @@ agencynet <- cbind(agency, agencysurv)
 x <- na.omit(as.matrix(agencynet[,-c(1:2,7,8,23,47:49,66,67,100)]))
 y <- cbind(x[,"agencysurv.time"], x[,"agencysurv.status"])
 colnames(y) <- c("time", "status")
-x <- x[,-c(92,93)]
+x <- x[,-which(colnames(x) %in% c("agencysurv.time", "agencysurv.status"))]
 net <- glmnet(x, y, family = "cox", alpha = 1, maxit = 500000)
 cv <- cv.glmnet(x, y, family = "cox", alpha = 1)
 plot(net, xvar = "lambda")
 abline(v = log(cv$lambda.min), lty = 2)
-plot(cv)
-
 
 # get coefficients for cross-validated estimate
-coefficients = coef(cv, s = cv$lambda.min)
-coefficients
-active.index = which(coefficients != 0)
-active.coefficients = coefficients[active.index]
-active.coefficients
-covarno = predict(cv, s = cv$lambda.min, type="nonzero")
-cbind(covarno, active.coefficients)
+coeff <- as.matrix(coef(cv, s = cv$lambda.min))
+coeff <- as.data.frame(cbind(rownames(coeff), coeff))
+row.names(coeff) <- NULL
+colnames(coeff) <- c("name", "value")
+coeff[coeff == 0] <- NA
+coeff <- na.omit(coeff)
+coeff
