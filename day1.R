@@ -1,5 +1,7 @@
 # install the packages before loading them
 rm(list = ls())
+library(ggplot2)
+library(reshape2)
 library(survival)
 library(rio)
 library(survminer)
@@ -13,13 +15,38 @@ library(glmnet)
 # import stata dataset
 agency <- import("./agency.dta")
 
+# missing data map
+
+png("missing.png", height = 500, width = 750)
+agency %>% 
+    is.na %>%
+    melt %>% 
+    ggplot(data = .,
+           aes(x = Var2,
+               y = Var1)) +
+    geom_raster(aes(fill = value)) +
+    scale_fill_grey(name = "",
+                    labels = c("Present","Missing")) +
+    theme_minimal() + 
+    theme(axis.text.x  = element_text(angle = 90, vjust = 0.2),
+          text = element_text(size = 18)) + 
+    labs(x = "Variables in Dataset",
+         y = "Rows / observations")
+dev.off()
+
+agency <- agency[, -which(names(agency) %in% c("budget", "public", "adahmed", "adasenme"))]
+
+sum(is.na(agency$budget))
+sum(is.na(agency$publicl))
+sum(is.na(agency$adahmed))
+sum(is.na(agency$adasenme))
+
 # create censorship indicator
 agency <- cbind(agency, agency$enddate != "1997-12-31")
-colnames(agency)[100] <- "terminated"
+colnames(agency)[97] <- "terminated"
 agency$terminated <- as.numeric(agency$terminated)
 
 sum(agency$terminated[!is.na(agency$terminated)])
-
 length(agency$terminated) - sum(agency$terminated)
 
 # creating a Surv object and fitting it
@@ -330,10 +357,18 @@ plotpath(pen, lwd = 2, labelsize = 1)
 
 # the same with glmnet on agency
 agencynet <- cbind(agency, agencysurv)
-x <- na.omit(as.matrix(agencynet[,-c(1:2,7,8,23,47:49,66,67,100)]))
-y <- cbind(x[,"agencysurv.time"], x[,"agencysurv.status"])
+x <- na.omit(agencynet[,-which(names(agency) %in% c("agencyid",
+                                                    "bureau",
+                                                    "startdat",
+                                                    "enddate",
+                                                    "year",
+                                                    "index",
+                                                    "terminated",
+                                                    "DO"))])
+y <- cbind(x$agencysurv[,1], x$agencysurv[,2])
 colnames(y) <- c("time", "status")
-x <- x[,-which(colnames(x) %in% c("agencysurv.time", "agencysurv.status"))]
+x <- x[,-which(names(x) %in% c("agencysurv"))]
+x <- as.matrix(x)
 net <- glmnet(x, y, family = "cox", alpha = 1, maxit = 500000)
 cv <- cv.glmnet(x, y, family = "cox", alpha = 1)
 plot(net, xvar = "lambda")
@@ -344,6 +379,7 @@ coeff <- as.matrix(coef(cv, s = cv$lambda.min))
 coeff <- as.data.frame(cbind(rownames(coeff), coeff))
 row.names(coeff) <- NULL
 colnames(coeff) <- c("name", "value")
-coeff[coeff == 0] <- NA
+coeff$value <- as.numeric(as.character(coeff$value))
+coeff$value[coeff$value < 0.1 & coeff$value > - 0.1] <- NA # setting bounds
 coeff <- na.omit(coeff)
 coeff
