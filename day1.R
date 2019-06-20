@@ -52,7 +52,8 @@ length(agency$terminated) - sum(agency$terminated)
 # creating a Surv object and fitting it
 agencysurv <- Surv(agency$enddate - agency$startdat, event = agency$terminated)
 fit <- survfit(agencysurv ~ 1)
-fit; summary(fit)
+fit
+
 
 # plots (KM, hazard function, smoothed hazard, legislative survival and hazard function)
 ggsurvplot(fit, data = agency, legend = "none",
@@ -112,16 +113,19 @@ dev.off()
 survdiff(agencysurv ~ leg, 
          data = agency)
 
-# hazard graph
-png("hazard.png", width = 600, height = 500)
-plot(bshazard(agencysurv ~ 1, 
-              data = agency, 
-              lambda = 30), 
-     col = "blue", 
-     col.fill = "khaki1",
-     main = "Smoothed hazard",
-     xlab = "Time in days")
-dev.off()
+# hazard graph for different smoothing parameter values
+par(mfrow = c(2,2))
+for (lambda in seq(5, 150, length.out = 4)) {
+    plot(bshazard(agencysurv ~ 1, 
+                  data = agency, 
+                  lambda = lambda), 
+         col = "blue", 
+         col.fill = "khaki1",
+         main = paste("Smoothed hazard (lambda = ", 
+                      as.character(round(lambda)), ")",
+                      sep = "") ,
+         xlab = "Time in days")
+}
 
 # hazard graph for two given variables (I have to separate leg == 1 and leg == 0)
 agency %>% filter(leg == 1) -> agency1 
@@ -326,7 +330,6 @@ long
 
 # locat23 tvc
 long$llocat23 <- long$locat23 * as.numeric(long$time1)
-long
 
 coxph(agencysurv ~ exec + leg + com + locat23 + term + llocat23, 
       data = long, cluster(agencyid)) -> bet2tvc
@@ -337,6 +340,7 @@ bet2tvc
 cox.zph(bet2tvc)
 plot(survfit(bet2tvc))
 
+
 par(mfrow = c(2,2))
 ggcoxzph(cox.zph(bet2tvc))
 
@@ -346,16 +350,7 @@ ggcoxzph(cox.zph(bet2tvc))
 coxph(agencysurv ~ leg + com + locat23 + term + llocat23 + frailty(agencyid), 
       data = long, cluster(agencyid)) -> bet2tvc # doesn't work yet
 
-# penalized Cox regression using "penalized" library
-par(mfrow = c(1,1))
-penalized(response = agencysurv, 
-          penalized = ~ .,
-          standardize = TRUE,
-          data = na.omit(long),
-          steps = "Park") -> pen
-plotpath(pen, lwd = 2, labelsize = 1)
-
-# the same with glmnet on agency
+# penalized cox regression with glmnet on agency
 agencynet <- cbind(agency, agencysurv)
 x <- na.omit(agencynet[,-which(names(agency) %in% c("agencyid",
                                                     "bureau",
@@ -383,3 +378,7 @@ coeff$value <- as.numeric(as.character(coeff$value))
 coeff$value[coeff$value < 0.1 & coeff$value > - 0.1] <- NA # setting bounds
 coeff <- na.omit(coeff)
 coeff
+
+library(clickR)
+report(bet2tvc, type = "word")
+bet2tvc
