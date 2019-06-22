@@ -11,6 +11,7 @@ library(eha)
 library(flexsurv)
 library(penalized)
 library(glmnet)
+library(clickR)
 
 # import stata dataset
 agency <- import("./agency.dta")
@@ -156,6 +157,10 @@ dev.off()
 coxph(agencysurv ~ strata(locat2), 
       data = agency) -> strata
 
+par(mfrow = c(1,2))
+plot(survfit(coxph(agencysurv ~ strata(leg), data = agency))) 
+plot(survfit(coxph(agencysurv ~ strata(exec), data = agency))) 
+
 # term has very few cases?
 plot(survfit(strata))
 plot(survfit(strata), 
@@ -204,9 +209,6 @@ dev.off()
 png("weib.png", height = 500, width = 500)
 plot(weib)
 dev.off()
-?coxph
-
-colnames(agency)
 
 # Cox PH model
 coxph(agencysurv ~ leg + num + com + mem + locat2 + line + term + corp + exec, 
@@ -297,7 +299,7 @@ coxph(agencysurv ~ leg + reorg + bdivided,
 coxph(agencysurv ~ leg + num + com + mem, 
       data = agency)
 
-# final model (show that exec and corp (and mem?) uninteresting)
+# models (show that exec and corp (and mem?) uninteresting)
 coxph(agencysurv ~ leg + com + mem + locat23 + term + corp + exec, 
       data = agency) -> bet
 bet
@@ -311,6 +313,12 @@ bet2
 plot(survfit(bet2))
 cox.zph(bet2) -> zph2
 zph2
+
+report(coxph(agencysurv ~ leg + exec + locat23, data = agency))
+cox.zph(coxph(agencysurv ~ leg + exec + locat23, data = agency))
+
+cor(agency$locat2, agency$exec)
+
 
 #... tvc on PH assumption violator? (locat23)
 survSplit(formula = agencysurv ~ ., 
@@ -351,8 +359,10 @@ coxph(agencysurv ~ leg + com + locat23 + term + llocat23 + frailty(agencyid),
       data = long, cluster(agencyid)) -> bet2tvc # doesn't work yet
 
 # penalized cox regression with glmnet on agency
+par(mfrow = c(1,1))
 agencynet <- cbind(agency, agencysurv)
 x <- na.omit(agencynet[,-which(names(agency) %in% c("agencyid",
+                                                    "locat2",
                                                     "bureau",
                                                     "startdat",
                                                     "enddate",
@@ -364,21 +374,43 @@ y <- cbind(x$agencysurv[,1], x$agencysurv[,2])
 colnames(y) <- c("time", "status")
 x <- x[,-which(names(x) %in% c("agencysurv"))]
 x <- as.matrix(x)
-net <- glmnet(x, y, family = "cox", alpha = 1, maxit = 500000)
-cv <- cv.glmnet(x, y, family = "cox", alpha = 1)
+net <- glmnet(x, y, family = "cox", alpha = 1, 
+              maxit = 500000, standardize = TRUE)
+lambdamin <- c()
+for (i in (1:15)) {
+    lambdamin[i] <- log(cv.glmnet(x, y, family = "cox", alpha = 1)$lambda.min)
+}
+median(lambdamin)
 plot(net, xvar = "lambda")
-abline(v = log(cv$lambda.min), lty = 2)
+abline(v = median(lambdamin), lty = 2)
+text(x = median(lambdamin),
+     y = -12,
+     paste("lambda = ", 
+           as.character(round(median(lambdamin), 3)),
+           sep = ""))
+plot(cv)
 
 # get coefficients for cross-validated estimate
-coeff <- as.matrix(coef(cv, s = cv$lambda.min))
+coeff <- as.matrix(coef(cv, s = exp(median(lambdamin))))
 coeff <- as.data.frame(cbind(rownames(coeff), coeff))
 row.names(coeff) <- NULL
 colnames(coeff) <- c("name", "value")
 coeff$value <- as.numeric(as.character(coeff$value))
-coeff$value[coeff$value < 0.1 & coeff$value > - 0.1] <- NA # setting bounds
+coeff$value[coeff$value < 0.05 & coeff$value > - 0.05] <- NA # setting bounds
 coeff <- na.omit(coeff)
+coeff$HR <- exp(coeff$value)
 coeff
+as.character(coeff$name)[1]
 
-library(clickR)
-report(bet2tvc, type = "word")
-bet2tvc
+formula(agencysurv ~ as.name(as.character(coeff$name[1])))
+
+paste("agencysurv~", as.name(as.character(coeff$name)))
+
+as.name(as.character(coeff$name[1]))
+
+coxph(agencysurv ~ leg + exec + tmpwowe + outreorg + estate + locat23 + ford,
+      data = agency)
+
+cbind(agency$estate, agency$terminated)
+
+# rerun Cox with PH assumptions
